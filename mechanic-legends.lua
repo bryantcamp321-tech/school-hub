@@ -1354,3 +1354,119 @@ function Features.Player(hub)
     conn(UIS.JumpRequest:Connect(function()
         local humanoid = Engine.Humanoid()
         if infinite and humanoid then humanoid:ChangeState(Enum.HumanoidStateType.Jumping) end
+end))
+    sec:Toggle({ Text = "Infinite jump", Flag = "infjump", Callback = function(s) infinite = s end })
+    sec:Toggle({ Text = "Noclip", Flag = "noclip", Callback = function(s) noclip = s end })
+
+    conn(RunService.Stepped:Connect(function()
+        if not noclip then return end
+        local char = LP.Character
+        if not char then return end
+        for _, d in ipairs(char:GetDescendants()) do
+            if d:IsA("BasePart") then d.CanCollide = false end
+        end
+    end))
+
+    local anti = tab:Section("Anti-AFK")
+    anti:Toggle({ Text = "Anti-AFK", Flag = "antiafk", Callback = function(state)
+        if not state then return end
+        task.spawn(function()
+            local vu = game:GetService("VirtualUser")
+            while ENV.SchoolHub do
+                pcall(function()
+                    vu:CaptureController()
+                    vu:ClickButton1(Vector2.new(800, 400))
+                end)
+                task.wait(55)
+            end
+        end)
+    end })
+end
+
+function Features.Debug(hub)
+    local tab = hub:Tab("Debug")
+    local sec = tab:Section("Scanner")
+    local countLabel = sec:Label("Prompts: --")
+
+    sec:Button({ Text = "Rescan", Callback = function()
+        Engine.Refresh()
+        countLabel.Text = "Prompts: " .. #Engine.List
+        hub:Notify("Debug", #Engine.List .. " prompts.")
+    end })
+    sec:Button({ Text = "Copy prompt names", Callback = function()
+        local lines = {}
+        for i, entry in ipairs(Engine.List) do
+            if i > 70 then break end
+            lines[#lines + 1] = entry.name
+        end
+        if type(setclipboard) == "function" then
+            pcall(setclipboard, table.concat(lines, "\n"))
+            hub:Notify("Debug", "Copied.")
+        end
+    end })
+    sec:Button({ Text = "Dump car numbers", Callback = function()
+        local entry = Engine.Find(Pat.Buy)
+        if not entry then return hub:Notify("Debug", "No junkyard prompt in range.") end
+        local nums = carNumbers(entry.prompt.Parent)
+        local lines = {}
+        for k, v in pairs(nums) do lines[#lines + 1] = k .. "=" .. tostring(v) end
+        if type(setclipboard) == "function" then
+            pcall(setclipboard, table.concat(lines, "\n"))
+            hub:Notify("Debug", #lines .. " values copied.")
+        end
+    end })
+end
+
+function Features.Settings(hub)
+    local tab = hub:Tab("Settings")
+    tab:Section("Appearance"):Dropdown({
+        Text = "Accent colour",
+        Items = { "Citron", "Mint", "Azure", "Rose", "Violet", "Amber" },
+        Callback = function(choice) hub:ApplyTheme(choice) end,
+    })
+    tab:Section("Appearance"):Label("Right Shift hides the window.")
+
+    local config = tab:Section("Config")
+    config:Button({ Text = "Save settings", Callback = function()
+        hub:SaveConfig()
+        hub:Notify("Config", "Saved.")
+    end })
+    config:Button({ Text = "Load settings", Callback = function()
+        hub:LoadConfig()
+        hub:Notify("Config", "Loaded.")
+    end })
+    config:Button({ Text = "Unload hub", Callback = function() hub:Unload() end })
+end
+
+local hub = setmetatable({ Tabs = {} }, Hub)
+ENV.SchoolHub = hub
+ENV.MLEngine = Engine
+
+local ok, err = pcall(function()
+    hub:Build()
+    Features.Money(hub)
+    Features.Limits(hub)
+    Features.Car(hub)
+    Features.Travel(hub)
+    Features.Player(hub)
+    Features.Debug(hub)
+    Features.Settings(hub)
+end)
+
+if not ok then
+    warn("[School Hub] build failed: " .. tostring(err))
+    return
+end
+
+task.spawn(function()
+    Engine.Refresh()
+    while ENV.SchoolHub == hub do
+        if Engine.Running then Engine.Refresh() end
+        task.wait(1.2)
+    end
+end)
+
+pcall(hub.LoadConfig, hub)
+hub:Notify("School Hub", "Money farm v" .. hub.Version .. " - stand in your garage, then START.")
+
+return hub
