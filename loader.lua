@@ -1,14 +1,14 @@
 --!nocheck
 --[[
-    School Hub - single-file hub
-    Framework + features in one chunk. No remote fetch.
+    School Hub - Mechanic Legends | MONEY FARM
+    Loadstring:
+      loadstring(game:HttpGet("https://raw.githubusercontent.com/bryantcamp321-tech/school-hub/main/mechanic-legends.lua"))()
 
-    loadstring(game:HttpGet("<raw url of loader.lua>"))()
-
-    Right Shift hides the window. Settings tab saves config.
+    Fully automated. Stand in your garage, hit START, walk away.
+    Right Shift hides the window.
 ]]
 
-local Hub = { Version = "1.2.0", Name = "School Hub" }
+local Hub = { Version = "2.0.0", Name = "School Hub" }
 Hub.__index = Hub
 
 local Players = game:GetService("Players")
@@ -18,6 +18,7 @@ local TweenService = game:GetService("TweenService")
 local HttpService = game:GetService("HttpService")
 local Lighting = game:GetService("Lighting")
 local TeleportService = game:GetService("TeleportService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local ENV = (function()
     local ok, value = pcall(function() return getgenv() end)
@@ -27,7 +28,7 @@ end)()
 
 local LP = Players.LocalPlayer
 
-do -- single instance
+do
     local previous = ENV.SchoolHub
     if type(previous) == "table" and type(previous.Unload) == "function" then
         pcall(previous.Unload)
@@ -66,6 +67,8 @@ local Theme = {
     Stroke = Color3.fromRGB(40, 44, 50),
     Text   = Color3.fromRGB(237, 240, 245),
     Sub    = Color3.fromRGB(134, 141, 152),
+    Good   = Color3.fromRGB(92, 232, 180),
+    Bad    = Color3.fromRGB(255, 118, 158),
     Accent = Themes.Citron,
 }
 
@@ -119,8 +122,6 @@ local function label(parent, text, size, color, bold)
         RichText = true,
     }, parent)
 end
-
--- notifications --------------------------------------------------------------
 
 function Hub:Notify(title, text, seconds)
     if not self.Gui then return end
@@ -381,56 +382,6 @@ function Section:Textbox(opts)
     return { Get = function() return box.Text end, Set = function(v) box.Text = tostring(v) end }
 end
 
-function Section:Keybind(opts)
-    local row = create("Frame", { Size = UDim2.new(1, 0, 0, 30), BackgroundTransparency = 1 }, self.Body)
-    label(row, opts.Text or "Keybind", UDim2.new(1, -90, 1, 0), Theme.Text)
-    local button = create("TextButton", {
-        Size = UDim2.fromOffset(80, 22),
-        Position = UDim2.new(1, -80, 0.5, -11),
-        BackgroundColor3 = Theme.Raised,
-        Text = opts.Default and opts.Default.Name or "None",
-        Font = Enum.Font.GothamBold,
-        TextSize = 11,
-        TextColor3 = Theme.Sub,
-        AutoButtonColor = false,
-        BorderSizePixel = 0,
-    }, row)
-    corner(button, 5)
-    local buttonStroke = outline(button)
-    local current = opts.Default
-    local listening = false
-    local hold = opts.Mode == "hold"
-
-    conn(button.MouseButton1Click:Connect(function()
-        listening = true
-        button.Text = "..."
-        tween(buttonStroke, { Color = Theme.Accent }, 0.1)
-    end))
-
-    conn(UIS.InputBegan:Connect(function(input, typing)
-        if listening then
-            if typing then return end
-            listening = false
-            current = input.KeyCode
-            button.Text = current.Name
-            tween(buttonStroke, { Color = Theme.Stroke }, 0.1)
-            if opts.Callback then task.spawn(opts.Callback, current) end
-            return
-        end
-        if not hold or typing or not current then return end
-        if input.KeyCode ~= current then return end
-        if opts.Callback then task.spawn(opts.Callback, true) end
-    end))
-
-    conn(UIS.InputEnded:Connect(function(input)
-        if not hold or not current then return end
-        if input.KeyCode ~= current then return end
-        if opts.Callback then task.spawn(opts.Callback, false) end
-    end))
-
-    return { Get = function() return current end }
-end
-
 function Section:Button(opts)
     local button = create("TextButton", {
         Size = UDim2.new(1, 0, 0, 28),
@@ -578,8 +529,8 @@ function Hub:Build()
     }, parent)
 
     local win = create("Frame", {
-        Size = UDim2.fromOffset(560, 380),
-        Position = UDim2.new(0.5, -280, 0.5, -190),
+        Size = UDim2.fromOffset(600, 420),
+        Position = UDim2.new(0.5, -300, 0.5, -210),
         BackgroundColor3 = Theme.Bg,
         BorderSizePixel = 0,
         Active = true,
@@ -610,7 +561,8 @@ function Hub:Build()
         BorderSizePixel = 0,
     }, bar)
 
-    local title = label(bar, "<b>School</b> Hub", UDim2.new(1, -130, 1, 0), Theme.Text, true)
+    local title = label(bar, "<b>School</b> Hub <font color='#868d98'>| ML Money</font>",
+        UDim2.new(1, -160, 1, 0), Theme.Text, true)
     title.Position = UDim2.new(0, 14, 0, 0)
     title.TextSize = 14
     local version = label(bar, "v" .. Hub.Version, UDim2.new(0, 54, 1, 0), Theme.Sub)
@@ -645,7 +597,7 @@ function Hub:Build()
     corner(minimise, 5)
     conn(minimise.MouseButton1Click:Connect(function()
         self.Minimized = not self.Minimized
-        tween(win, { Size = self.Minimized and UDim2.fromOffset(560, 38) or UDim2.fromOffset(560, 380) }, 0.18)
+        tween(win, { Size = self.Minimized and UDim2.fromOffset(600, 38) or UDim2.fromOffset(600, 420) }, 0.18)
         self.Body.Visible = not self.Minimized
     end))
 
@@ -710,25 +662,24 @@ function Hub:Build()
 end
 
 function Hub:Unload()
+    Engine.Stop("unloaded")
     for _, c in ipairs(Connections) do pcall(function() c:Disconnect() end) end
     for _, i in ipairs(Instances) do pcall(function() i:Destroy() end) end
     if ENV.SchoolHub == self then ENV.SchoolHub = nil end
     print("[School Hub] unloaded")
 end
 
--- config ---------------------------------------------------------------------
-
 function Hub:SaveConfig()
     if type(writefile) ~= "function" then return end
     local data = {}
     for flag, ctl in pairs(Controls) do data[flag] = ctl.get() end
-    pcall(writefile, "schoolhub/config.json", HttpService:JSONEncode(data))
+    pcall(writefile, "schoolhub/mechanic-legends.json", HttpService:JSONEncode(data))
 end
 
 function Hub:LoadConfig()
     if type(readfile) ~= "function" or type(isfile) ~= "function" then return end
-    if not isfile("schoolhub/config.json") then return end
-    local ok, raw = pcall(readfile, "schoolhub/config.json")
+    if not isfile("schoolhub/mechanic-legends.json") then return end
+    local ok, raw = pcall(readfile, "schoolhub/mechanic-legends.json")
     if not ok then return end
     local decoded
     ok, decoded = pcall(HttpService.JSONDecode, HttpService, raw)
@@ -739,205 +690,667 @@ function Hub:LoadConfig()
     end
 end
 
--- boot -----------------------------------------------------------------------
+-- ============================================================================
+-- prompt driver
+-- ============================================================================
 
-function Hub:Init()
-    ENV.SchoolHub = self
-    self:Build()
+local Engine = {
+    List = {},
+    Cooldown = {},
+    Running = false,
+    Paused = false,
+    Log = {},
+    LogLabel = nil,
+    StatusLabel = nil,
+    StageLabel = nil,
+}
 
-    local settings = self:Tab("Settings")
-    local appearance = settings:Section("Appearance")
-    appearance:Dropdown({
-        Text = "Accent colour",
-        Items = { "Citron", "Mint", "Azure", "Rose", "Violet", "Amber" },
-        Callback = function(choice) self:ApplyTheme(choice) end,
-    })
-    appearance:Label("Right Shift hides the window.")
+local Pat = {
+    Job     = { "workbench", "customer", "accept job", "new job", "tablet", "approve", "job" },
+    Repair  = { "repair", "install", "reinstall", "mount", "bolt", "fix", "wrench", "reassemble", "attach" },
+    Battery = { "battery", "charge" },
+    Rust    = { "rust", "clean", "wash", "sand", "ultrasonic", "grind" },
+    Polish  = { "polish", "buff", "finish", "shine" },
+    Paint   = { "paint", "spray", "strip", "colour", "color" },
+    Deliver = { "deliver", "handover", "hand in", "complete job", "done" },
+    Sell    = { "sell car", "sell", "dealer", "resale", "trade in" },
+    Buy     = { "buy", "purchase", "junk" },
+}
 
-    local config = settings:Section("Config")
-    config:Button({ Text = "Save settings", Callback = function()
-        self:SaveConfig()
-        self:Notify("Config", "Saved.")
-    end })
-    config:Button({ Text = "Load settings", Callback = function()
-        self:LoadConfig()
-        self:Notify("Config", "Loaded.")
-    end })
-    config:Button({ Text = "Unload hub", Callback = function() self:Unload() end })
-
-    self:Notify("School Hub", "Loaded v" .. self.Version .. " - Right Shift to hide.")
-    return self
+function Engine.HRP()
+    local char = LP.Character
+    return char and char:FindFirstChild("HumanoidRootPart") or nil
 end
 
--- features -------------------------------------------------------------------
+function Engine.Humanoid()
+    local char = LP.Character
+    return char and char:FindFirstChildOfClass("Humanoid") or nil
+end
+
+function Engine.Position(inst)
+    local node = inst
+    for _ = 1, 5 do
+        if not node then return nil end
+        if node:IsA("BasePart") then return node.Position end
+        if node:IsA("Attachment") then
+            local part = node.Parent
+            if part and part:IsA("BasePart") then return part.Position end
+        end
+        node = node.Parent
+    end
+    return nil
+end
+
+function Engine.LogLine(text)
+    table.insert(Engine.Log, 1, os.date("%H:%M:%S") .. "  " .. text)
+    while #Engine.Log > 60 do table.remove(Engine.Log) end
+    if Engine.LogLabel then
+        Engine.LogLabel.Text = table.concat(Engine.Log, "\n")
+    end
+end
+
+function Engine.SetStatus(text)
+    if Engine.StatusLabel then Engine.StatusLabel.Text = "Status: " .. text end
+end
+
+function Engine.SetStage(text)
+    if Engine.StageLabel then Engine.StageLabel.Text = "Step: " .. text end
+end
+
+function Engine.Walk(pos)
+    local hrp = Engine.HRP()
+    if not hrp or not pos then return false end
+    local humanoid = Engine.Humanoid()
+    if humanoid and humanoid.Sit then pcall(function() humanoid.Sit = false end) end
+    local offset = Vector3.new(0, 2.6, 0)
+    local away = hrp.Position - pos
+    if away.Magnitude > 0.05 then offset = offset + away.Unit * 2.4 end
+    pcall(function() hrp.CFrame = CFrame.new(pos + offset) end)
+    pcall(function()
+        hrp.AssemblyLinearVelocity = Vector3.zero
+        hrp.AssemblyAngularVelocity = Vector3.zero
+    end)
+    return true
+end
+
+function Engine.Refresh()
+    local built = {}
+    pcall(function()
+        for _, d in ipairs(workspace:GetDescendants()) do
+            if d:IsA("ProximityPrompt") then
+                local pos = Engine.Position(d)
+                if pos then
+                    built[#built + 1] = {
+                        prompt = d,
+                        pos = pos,
+                        name = string.lower(table.concat({
+                            d.Name, d.ActionText or "", d.ObjectText or "",
+                            d.Parent and d.Parent.Name or "",
+                            d.Parent and d.Parent.Parent and d.Parent.Parent.Name or "",
+                        }, " ")),
+                    }
+                end
+            end
+        end
+    end)
+    Engine.List = built
+    for prompt in pairs(Engine.Cooldown) do
+        if not prompt.Parent then Engine.Cooldown[prompt] = nil end
+    end
+end
+
+function Engine.Find(patterns, filter)
+    local hrp = Engine.HRP()
+    if not hrp then return nil end
+    local best, bestDist = nil, math.huge
+    for _, entry in ipairs(Engine.List) do
+        if entry.prompt.Parent and entry.prompt.Enabled ~= false then
+            local ok = false
+            for _, pat in ipairs(patterns) do
+                if string.find(entry.name, pat, 1, true) then ok = true; break end
+            end
+            if ok and (not filter or filter(entry)) then
+                local dist = (entry.pos - hrp.Position).Magnitude
+                if dist < bestDist then best, bestDist = entry, dist end
+            end
+        end
+    end
+    return best
+end
+
+function Engine.Fire(entry, cooldown)
+    if type(entry) ~= "table" then return false end
+    local prompt = entry.prompt
+    if not prompt or not prompt.Parent or prompt.Enabled == false then return false end
+    local now = os.clock()
+    local last = Engine.Cooldown[prompt]
+    if last and now - last < (cooldown or 1.0) then return false end
+    Engine.Cooldown[prompt] = now
+
+    Engine.Walk(entry.pos)
+    if not Engine.HRP() then return false end
+
+    pcall(function()
+        prompt.MaxActivationDistance = math.max(prompt.MaxActivationDistance, 90)
+        prompt.RequiresLineOfSight = false
+    end)
+    local hold = prompt.HoldDuration
+    pcall(function() prompt.HoldDuration = 0 end)
+    pcall(function()
+        if type(fireproximityprompt) == "function" then
+            fireproximityprompt(prompt, 0)
+        else
+            prompt:InputHoldBegin()
+            task.wait(math.max(hold, 0.1))
+            prompt:InputHoldEnd()
+        end
+    end)
+    pcall(function() prompt.HoldDuration = hold end)
+    return true
+end
+
+-- ============================================================================
+-- money tracking
+-- ============================================================================
+
+local Money = { start = nil, peak = nil, spent = 0, earned = 0, jobs = 0, cars = 0, started = 0 }
+
+function Money.Value()
+    local stats = LP:FindFirstChild("leaderstats")
+    local sources = {}
+    if stats then table.insert(sources, stats) end
+    table.insert(sources, LP)
+    for _, holder in ipairs(sources) do
+        for _, v in ipairs(holder:GetChildren()) do
+            if v:IsA("ValueBase") then
+                local lower = string.lower(v.Name)
+                if string.find(lower, "cash", 1, true) or string.find(lower, "money", 1, true)
+                    or string.find(lower, "coin", 1, true) then
+                    local n = tonumber(v.Value)
+                    if n then return n, v end
+                end
+            end
+        end
+    end
+    for _, key in ipairs({ "Cash", "Money", "Coins" }) do
+        local n = tonumber(LP:GetAttribute(key))
+        if n then return n end
+    end
+    return nil
+end
+
+-- ============================================================================
+-- runner
+-- ============================================================================
+
+local S = {
+    mode = "Hybrid",
+    reserve = 2500,
+    maxBuy = 8000,
+    minMargin = 2500,
+    cooldown = 3,
+    passes = 30,
+    rejoin = true,
+}
+
+local StallLimit = 6
+
+function Engine.Stop(reason)
+    if not Engine.Running then return end
+    Engine.Running = false
+    Engine.Paused = false
+    Engine.SetStatus("stopped")
+    Engine.SetStage("-")
+    Engine.LogLine("stopped: " .. tostring(reason or "user"))
+end
+
+function Engine.Pause(on)
+    Engine.Paused = on
+    Engine.SetStatus(on and "paused" or "running")
+end
+
+local function runStage(stage)
+    local deadline = os.clock() + (stage.timeout or 20)
+    local fired = 0
+    while Engine.Running and not Engine.Paused and os.clock() < deadline do
+        local entry = Engine.Find(stage.find, stage.filter)
+        if entry then
+            Engine.Fire(entry, stage.cooldown)
+            fired += 1
+            task.wait(stage.delay or 0.45)
+            if stage.once and fired >= (stage.hits or 1) then return true end
+        else
+            if not stage.once then return fired > 0 end
+            task.wait(0.25)
+        end
+    end
+    return fired > 0
+end
+
+local function carNumbers(model)
+    local out = {}
+    if not model then return out end
+    for _, d in ipairs(model:GetDescendants()) do
+        if d:IsA("ValueBase") then
+            local n = tonumber(d.Value)
+            if n then out[string.lower(d.Name)] = n end
+        end
+    end
+    for k, v in pairs(model:GetAttributes()) do
+        local n = tonumber(v)
+        if n then out[string.lower(k)] = n end
+    end
+    return out
+end
+
+local function pickNumber(tbl, keys)
+    for _, key in ipairs(keys) do
+        for name, value in pairs(tbl) do
+            if string.find(name, key, 1, true) then return value end
+        end
+    end
+    return nil
+end
+
+local function profitableCar(entry)
+    local prompt = entry.prompt
+    local model = prompt.Parent
+    for _ = 1, 4 do
+        if not model or model == workspace then break end
+        local nums = carNumbers(model)
+        local price = pickNumber(nums, { "price", "cost", "buy" })
+        local value = pickNumber(nums, { "value", "worth", "market", "estimate" })
+        local repair = pickNumber(nums, { "repair", "estimate cost", "damage" }) or 0
+        if price and price > 0 then
+            if price > S.maxBuy then return false end
+            if value then
+                return (value - price - repair) >= S.minMargin
+            end
+            return true
+        end
+        model = model.Parent
+    end
+    return true
+end
+
+local function cashGuard()
+    if S.reserve <= 0 then return true end
+    local cash = Money.Value()
+    if cash and cash < S.reserve then
+        Engine.Stop("cash below reserve ($" .. S.reserve .. ")")
+        return false
+    end
+    return true
+end
+
+local function jobStages()
+    return {
+        { name = "accept job", find = Pat.Job, once = true, timeout = 10, delay = 1.2, cooldown = 0.6 },
+        { name = "repair parts", find = Pat.Repair, timeout = 70, delay = 0.4 },
+        { name = "charge battery", find = Pat.Battery, timeout = 20, delay = 0.5 },
+        { name = "clean rust", find = Pat.Rust, timeout = 70, delay = 0.4 },
+        { name = "polish parts", find = Pat.Polish, timeout = 45, delay = 0.4 },
+        { name = "paint", find = Pat.Paint, timeout = 60, delay = 0.5 },
+        { name = "hand job back", find = Pat.Deliver, once = true, hits = 2, timeout = 15, delay = 1.0 },
+    }
+end
+
+local function flipStages()
+    return {
+        { name = "buy junk car", find = Pat.Buy, filter = profitableCar, once = true, timeout = 20, delay = 1.2 },
+        { name = "repair parts", find = Pat.Repair, timeout = 80, delay = 0.4 },
+        { name = "charge battery", find = Pat.Battery, timeout = 20, delay = 0.5 },
+        { name = "clean rust", find = Pat.Rust, timeout = 70, delay = 0.4 },
+        { name = "polish parts", find = Pat.Polish, timeout = 45, delay = 0.4 },
+        { name = "paint", find = Pat.Paint, timeout = 60, delay = 0.5 },
+        { name = "sell car", find = Pat.Sell, once = true, hits = 2, timeout = 20, delay = 1.0 },
+    }
+end
+
+local function runSet(stages)
+    for _, stage in ipairs(stages) do
+        if not Engine.Running or Engine.Paused then return end
+        Engine.SetStage(stage.name)
+        local ok = runStage(stage)
+        if not ok and stage.once then
+            Engine.LogLine("retry: " .. stage.name)
+            ok = runStage(stage)
+        end
+        if not ok then Engine.LogLine("skip: " .. stage.name) end
+    end
+end
+
+local function cycle()
+    local cashBefore = Money.Value()
+    local mode = S.mode
+
+    if mode == "Hybrid" then
+        local garageCar = Engine.Find(Pat.Sell)
+        if garageCar then
+            Engine.LogLine("hybrid: finishing owned car")
+            runSet({ table.unpack(flipStages(), 2) })
+        else
+            local cash = Money.Value()
+            if cash and cash > (S.reserve + S.maxBuy) then
+                Engine.LogLine("hybrid: buying a flip")
+                runSet(flipStages())
+            else
+                runSet(jobStages())
+            end
+        end
+    elseif mode == "Flips" then
+        runSet(flipStages())
+    else
+        runSet(jobStages())
+    end
+
+    local cashAfter = Money.Value()
+    if cashBefore and cashAfter then
+        local delta = cashAfter - cashBefore
+        if delta > 0 then
+            Money.earned += delta
+            Engine.LogLine("+$" .. math.floor(delta))
+        elseif delta < 0 then
+            Money.spent += -delta
+        else
+            Engine.LogLine("no cash change this cycle")
+        end
+    end
+end
+
+function Engine.Start()
+    if Engine.Running then return end
+    Engine.Running = true
+    Engine.Paused = false
+    Money.started = os.clock()
+    Money.start = Money.Value()
+    Engine.SetStatus("running")
+    Engine.LogLine("started in " .. S.mode .. " mode")
+
+    task.spawn(function()
+        local stalls = 0
+        while Engine.Running do
+            if Engine.Paused then
+                task.wait(0.4)
+            else
+                Engine.Refresh()
+                if cashGuard() then
+                    local before = Money.Value()
+                    local ok, err = pcall(cycle)
+                    if not ok then Engine.LogLine("error: " .. tostring(err)) end
+                    local after = Money.Value()
+                    if before and after and after <= before then
+                        stalls += 1
+                    else
+                        stalls = 0
+                    end
+                    if stalls >= StallLimit then
+                        stalls = 0
+                        Engine.LogLine("stalled " .. StallLimit .. "x, recovering")
+                        Engine.SetStatus("recovering")
+                        task.wait(2)
+                        Engine.Refresh()
+                        local board = Engine.Find(Pat.Job)
+                        if board then Engine.Fire(board, 0) end
+                        if S.rejoin and Engine.Running then
+                            Engine.LogLine("rejoin fallback")
+                            task.wait(1)
+                            pcall(TeleportService.TeleportToPlaceInstance,
+                                TeleportService, game.PlaceId, game.JobId, LP)
+                            Engine.Stop("rejoining")
+                            return
+                        end
+                    end
+                end
+                if Engine.Running then
+                    Engine.SetStatus("cooldown " .. S.cooldown .. "s")
+                    task.wait(S.cooldown)
+                    if Engine.Running then Engine.SetStatus("running") end
+                end
+            end
+        end
+    end)
+end
+
+-- ============================================================================
+-- ui features
+-- ============================================================================
 
 local Features = {}
 
-function Features.Movement(hub)
-    local tab = hub:Tab("Movement")
-    local character = tab:Section("Character")
+function Features.Money(hub)
+    local tab = hub:Tab("Money")
 
-    local humanoid
-    local function bind()
-        local model = LP and LP.Character
-        humanoid = model and model:FindFirstChildOfClass("Humanoid") or nil
-    end
-    bind()
-    conn(LP.CharacterAdded:Connect(function()
-        task.wait(0.6)
-        bind()
-    end))
+    local stats = tab:Section("Session")
+    local cashLabel = stats:Label("Cash: --")
+    local rateLabel = stats:Label("Per hour: --")
+    local runLabel = stats:Label("Runtime: --")
+    local spentLabel = stats:Label("Spent: $0")
 
-    character:Slider({
-        Text = "Walk speed", Min = 16, Max = 250, Default = 16, Suffix = " spd", Flag = "walk",
-        Callback = function(value)
-            if humanoid then humanoid.WalkSpeed = value end
-        end,
-    })
-    character:Slider({
-        Text = "Jump power", Min = 50, Max = 350, Default = 50, Suffix = " jmp", Flag = "jump",
-        Callback = function(value)
-            if humanoid then humanoid.JumpPower = value end
-        end,
-    })
-
-    local infinite
-    conn(UIS.JumpRequest:Connect(function()
-        if infinite and humanoid then
-            humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-        end
-    end))
-    character:Toggle({
-        Text = "Infinite jump", Flag = "infjump",
-        Callback = function(state) infinite = state end,
-    })
-
-    local world = tab:Section("World")
-    local baseline
-    world:Toggle({
-        Text = "Fullbright", Flag = "fullbright",
+    local master = tab:Section("Control")
+    master:Toggle({
+        Text = "MONEY FARM (start/stop)", Flag = "master",
         Callback = function(state)
-            if state then
-                baseline = baseline or {
-                    Brightness = Lighting.Brightness,
-                    ClockTime = Lighting.ClockTime,
-                    GlobalShadows = Lighting.GlobalShadows,
-                }
-                Lighting.Brightness = 2
-                Lighting.ClockTime = 14
-                Lighting.GlobalShadows = false
-            elseif baseline then
-                Lighting.Brightness = baseline.Brightness
-                Lighting.ClockTime = baseline.ClockTime
-                Lighting.GlobalShadows = baseline.GlobalShadows
-            end
+            if state then Engine.Start() else Engine.Stop("toggle off") end
         end,
     })
-    world:Slider({
-        Text = "Field of view", Min = 40, Max = 120, Default = 70, Flag = "fov",
-        Callback = function(value)
-            if workspace.CurrentCamera then workspace.CurrentCamera.FieldOfView = value end
+    Engine.StatusLabel = master:Label("Status: idle")
+    Engine.StageLabel = master:Label("Step: -")
+    master:Button({ Text = "Pause / resume", Callback = function()
+        if not Engine.Running then return end
+        Engine.Pause(not Engine.Paused)
+        hub:Notify("Farm", Engine.Paused and "Paused." or "Resumed.")
+    end })
+    master:Dropdown({
+        Text = "Mode",
+        Items = { "Hybrid", "Jobs", "Flips" },
+        Callback = function(choice)
+            S.mode = choice
+            Engine.LogLine("mode: " .. choice)
         end,
+    })
+    master:Label("Hybrid = jobs when broke, flips when you can afford a car.")
+
+    local log = tab:Section("Log")
+    local logFrame = create("ScrollingFrame", {
+        Size = UDim2.new(1, 0, 0, 150),
+        BackgroundColor3 = Theme.Bg,
+        BorderSizePixel = 0,
+        CanvasSize = UDim2.new(),
+        AutomaticCanvasSize = Enum.AutomaticSize.Y,
+        ScrollBarThickness = 3,
+        ScrollBarImageColor3 = Theme.Stroke,
+    }, log.Body)
+    corner(logFrame, 6)
+    pad(logFrame, 6)
+    Engine.LogLabel = create("TextLabel", {
+        Size = UDim2.new(1, 0, 0, 0),
+        AutomaticSize = Enum.AutomaticSize.Y,
+        BackgroundTransparency = 1,
+        Font = Enum.Font.Code,
+        TextSize = 11,
+        TextColor3 = Theme.Sub,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        TextYAlignment = Enum.TextYAlignment.Top,
+        TextWrapped = true,
+        Text = "",
+    }, logFrame)
+
+    conn(RunService.Heartbeat:Connect(function()
+        local cash = Money.Value()
+        cashLabel.Text = cash and ("Cash: $" .. tostring(math.floor(cash))) or "Cash: --"
+
+        local run = Money.started > 0 and (os.clock() - Money.started) or 0
+        runLabel.Text = string.format("Runtime: %dm %02ds", math.floor(run / 60), math.floor(run % 60))
+
+        if Money.earned > 0 and run > 20 then
+            rateLabel.Text = "Per hour: $" .. tostring(math.floor(Money.earned / run * 3600))
+        else
+            rateLabel.Text = "Per hour: --"
+        end
+        spentLabel.Text = "Spent: $" .. tostring(math.floor(Money.spent))
+    end))
+end
+
+function Features.Limits(hub)
+    local tab = hub:Tab("Limits")
+    local sec = tab:Section("Spending")
+
+    sec:Slider({
+        Text = "Cash reserve", Min = 0, Max = 100000, Default = 2500, Suffix = " $", Flag = "reserve",
+        Callback = function(v) S.reserve = math.floor(v) end,
+    })
+    sec:Label("Farm stops if cash drops under the reserve.")
+
+    sec:Slider({
+        Text = "Max car price", Min = 500, Max = 60000, Default = 8000, Suffix = " $", Flag = "maxbuy",
+        Callback = function(v) S.maxBuy = math.floor(v) end,
+    })
+    sec:Slider({
+        Text = "Min expected margin", Min = 0, Max = 40000, Default = 2500, Suffix = " $", Flag = "margin",
+        Callback = function(v) S.minMargin = math.floor(v) end,
+    })
+    sec:Label("Junkyard cars are skipped unless value minus price minus repairs clears the margin.")
+
+    local tune = tab:Section("Timing")
+    tune:Slider({
+        Text = "Cycle cooldown", Min = 0, Max = 15, Default = 3, Suffix = " s", Flag = "cooldown",
+        Callback = function(v) S.cooldown = math.floor(v) end,
+    })
+    tune:Toggle({
+        Text = "Rejoin when stalled", Flag = "rejoin", Default = true,
+        Callback = function(state) S.rejoin = state end,
     })
 end
 
-function Features.Players(hub)
-    local tab = hub:Tab("Players")
-    local section = tab:Section("Teleport")
+function Features.Car(hub)
+    local tab = hub:Tab("Car")
+    local fuel = true
+    local boost = false
+    local speed = 100
+
+    local function seatPart()
+        local humanoid = Engine.Humanoid()
+        local seat = humanoid and humanoid.SeatPart
+        if seat and seat:IsA("VehicleSeat") then return seat end
+        return nil
+    end
+
+    tab:Section("Driving"):Toggle({
+        Text = "Infinite fuel", Flag = "fuel", Default = true,
+        Callback = function(state) fuel = state end,
+    })
+    tab:Section("Driving"):Toggle({
+        Text = "Speed boost", Flag = "vboost",
+        Callback = function(state) boost = state end,
+    })
+    tab:Section("Driving"):Slider({
+        Text = "Boost speed", Min = 40, Max = 400, Default = 100, Flag = "vspeed",
+        Callback = function(v) speed = v end,
+    })
+    tab:Section("Driving"):Button({ Text = "Flip car upright", Callback = function()
+        local seat = seatPart()
+        local model = seat and seat.Parent
+        local primary = model and (model.PrimaryPart or model:FindFirstChildWhichIsA("BasePart", true))
+        if primary then
+            primary.CFrame = CFrame.new(primary.Position + Vector3.new(0, 4, 0)) * primary.CFrame.Rotation
+            hub:Notify("Car", "Flipped.")
+        else
+            hub:Notify("Car", "Not in a car.")
+        end
+    end })
+
+    conn(RunService.Heartbeat:Connect(function()
+        if fuel then
+            local seat = seatPart()
+            local model = seat and seat.Parent
+            if model then
+                for _, d in ipairs(model:GetDescendants()) do
+                    if d:IsA("NumberValue") and string.find(string.lower(d.Name), "fuel", 1, true) then
+                        pcall(function() d.Value = 100 end)
+                    end
+                end
+            end
+        end
+        if boost then
+            local seat = seatPart()
+            if seat then
+                local body = seat:FindFirstChild("SchoolBoost")
+                if not body then
+                    body = Instance.new("BodyVelocity")
+                    body.Name = "SchoolBoost"
+                    body.MaxForce = Vector3.new(1e5, 0, 1e5)
+                    body.Parent = seat
+                end
+                body.Velocity = seat.CFrame.LookVector * speed
+            end
+        end
+    end))
+end
+
+function Features.Travel(hub)
+    local tab = hub:Tab("Travel")
     local target
 
-    local function names()
-        local out = {}
-        for _, player in ipairs(Players:GetPlayers()) do
-            if player ~= LP then out[#out + 1] = player.Name end
+    local function scan()
+        local names, seen = {}, {}
+        for _, d in ipairs(workspace:GetDescendants()) do
+            if d:IsA("Model") then
+                local lower = string.lower(d.Name)
+                for _, key in ipairs({ "lift", "battery", "charger", "ultrasonic", "polisher",
+                    "paint", "booth", "parts", "junkyard", "dealer", "gas", "workbench" }) do
+                    if string.find(lower, key, 1, true) and not seen[d.Name] then
+                        seen[d.Name] = true
+                        names[#names + 1] = d.Name
+                        break
+                    end
+                end
+            end
         end
-        return out
+        table.sort(names)
+        return names
     end
 
-    local dropdown = section:Dropdown({
-        Text = "Target", Items = names(),
+    local dropdown = tab:Section("Stations"):Dropdown({
+        Text = "Station", Items = scan(),
         Callback = function(name) target = name end,
     })
-    section:Button({ Text = "Refresh list", Callback = function() dropdown.Refresh(names()) end })
-    section:Button({
-        Text = "Teleport to target",
-        Callback = function()
-            local player = target and Players:FindFirstChild(target)
-            local character = player and player.Character
-            local root = character and character:FindFirstChild("HumanoidRootPart")
-            local mine = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
-            if root and mine then
-                mine.CFrame = root.CFrame * CFrame.new(0, 0, 3)
-                hub:Notify("Teleport", "Moved to " .. player.Name)
-            else
-                hub:Notify("Teleport", "Target not available.")
+    tab:Section("Stations"):Button({ Text = "Refresh list", Callback = function()
+        dropdown.Refresh(scan())
+        hub:Notify("Travel", "Rebuilt.")
+    end })
+    tab:Section("Stations"):Button({ Text = "Teleport", Callback = function()
+        if not target then return hub:Notify("Travel", "Pick a station.") end
+        for _, d in ipairs(workspace:GetDescendants()) do
+            if d:IsA("Model") and d.Name == target then
+                local pos = Engine.Position(d)
+                if pos and Engine.Walk(pos) then return hub:Notify("Travel", "Moved.") end
             end
-        end,
-    })
-
-    local info = tab:Section("Info")
-    local fps = info:Label("FPS: --")
-    local frames, clock = 0, os.clock()
-    conn(RunService.RenderStepped:Connect(function()
-        frames += 1
-        if os.clock() - clock >= 1 then
-            fps.Text = "FPS: " .. frames
-            frames, clock = 0, os.clock()
         end
-    end))
-
-    info:Button({
-        Text = "Copy JobId",
-        Callback = function()
-            if type(setclipboard) == "function" then
-                pcall(setclipboard, game.JobId)
-                hub:Notify("Clipboard", "JobId copied.")
-            end
-        end,
-    })
-    info:Button({
-        Text = "Rejoin server",
-        Callback = function()
-            pcall(TeleportService.TeleportToPlaceInstance,
-                TeleportService, game.PlaceId, game.JobId, LP)
-        end,
-    })
+        hub:Notify("Travel", "Station not loaded.")
+    end })
 end
 
-function Features.Combat(hub)
-    local tab = hub:Tab("Combat")
-    local swinging = false
+function Features.Player(hub)
+    local tab = hub:Tab("Player")
+    local sec = tab:Section("Character")
 
-    local function swingRemote()
-        local folder = game:GetService("ReplicatedStorage"):FindFirstChild("Remotes")
-        local remote = folder and folder:FindFirstChild("Swing")
-        return remote
-    end
-
-    tab:Section("Melee"):Toggle({
-        Text = "Auto swing", Flag = "swing",
-        Callback = function(on)
-            swinging = on
-            if not on then return end
-            task.spawn(function()
-                while swinging and getgenv().SchoolHub do
-                    local remote = swingRemote()
-                    if remote then pcall(remote.FireServer, remote) end
-                    task.wait(0.1)
-                end
-            end)
+    sec:Slider({
+        Text = "Walk speed", Min = 16, Max = 250, Default = 16, Suffix = " spd", Flag = "walk",
+        Callback = function(v)
+            local humanoid = Engine.Humanoid()
+            if humanoid then humanoid.WalkSpeed = v end
         end,
     })
-end
+    sec:Slider({
+        Text = "Jump power", Min = 50, Max = 350, Default = 50, Suffix = " jmp", Flag = "jump",
+        Callback = function(v)
+            local humanoid = Engine.Humanoid()
+            if humanoid then humanoid.JumpPower = v end
+        end,
+    })
 
--- start ----------------------------------------------------------------------
-
-local hub = setmetatable({ Tabs = {} }, Hub)
-hub:Init()
-Features.Movement(hub)
-Features.Players(hub)
-Features.Combat(hub)
-
-hub:LoadConfig()
-
-return hub
+    local infinite, noclip = false, false
+    conn(UIS.JumpRequest:Connect(function()
+        local humanoid = Engine.Humanoid()
+        if infinite and humanoid then humanoid:ChangeState(Enum.HumanoidStateType.Jumping) end
