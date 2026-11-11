@@ -8,7 +8,7 @@
     Right Shift hides the window. Settings tab saves config.
 ]]
 
-local Hub = { Version = "1.1.0", Name = "School Hub" }
+local Hub = { Version = "1.2.0", Name = "School Hub" }
 Hub.__index = Hub
 
 local Players = game:GetService("Players")
@@ -261,7 +261,7 @@ function Section:Slider(opts)
     end))
 
     apply(value, true)
-    if opts.Flag then Controls[opts.Flag] = { get = function() return value end, set = function(v) apply(v, true) end } end
+    if opts.Flag then Controls[opts.Flag] = { get = function() return value end, set = function(v) apply(v) end } end
     return { Set = apply, Get = function() return value end }
 end
 
@@ -326,6 +326,7 @@ function Section:Dropdown(opts)
                 text.TextColor3 = Theme.Text
                 panel.Visible = false
                 panel.Size = UDim2.new(1, 0, 0, 0)
+                self.Holder.ZIndex = 1
                 tween(buttonStroke, { Color = Theme.Stroke }, 0.1)
                 if opts.Callback then task.spawn(opts.Callback, item) end
             end))
@@ -337,9 +338,11 @@ function Section:Dropdown(opts)
         panel.Visible = open
         if open then
             panel.Size = UDim2.new(1, 0, 0, math.min(#panel:GetChildren(), 6) * 26 + 8)
+            self.Holder.ZIndex = 20
             tween(buttonStroke, { Color = Theme.Accent }, 0.1)
         else
             panel.Size = UDim2.new(1, 0, 0, 0)
+            self.Holder.ZIndex = 1
             tween(buttonStroke, { Color = Theme.Stroke }, 0.1)
         end
     end))
@@ -396,6 +399,7 @@ function Section:Keybind(opts)
     local buttonStroke = outline(button)
     local current = opts.Default
     local listening = false
+    local hold = opts.Mode == "hold"
 
     conn(button.MouseButton1Click:Connect(function()
         listening = true
@@ -404,24 +408,26 @@ function Section:Keybind(opts)
     end))
 
     conn(UIS.InputBegan:Connect(function(input, typing)
-        if not listening or typing then return end
-        listening = false
-        current = input.KeyCode
-        button.Text = current.Name
-        tween(buttonStroke, { Color = Theme.Stroke }, 0.1)
-        if opts.Callback then task.spawn(opts.Callback, current) end
+        if listening then
+            if typing then return end
+            listening = false
+            current = input.KeyCode
+            button.Text = current.Name
+            tween(buttonStroke, { Color = Theme.Stroke }, 0.1)
+            if opts.Callback then task.spawn(opts.Callback, current) end
+            return
+        end
+        if not hold or typing or not current then return end
+        if input.KeyCode ~= current then return end
+        if opts.Callback then task.spawn(opts.Callback, true) end
     end))
 
-    if opts.Mode == "hold" and current then
-        conn(UIS.InputBegan:Connect(function(input, typing)
-            if typing or input.KeyCode ~= current then return end
-            if opts.Callback then task.spawn(opts.Callback, true) end
-        end))
-        conn(UIS.InputEnded:Connect(function(input)
-            if input.KeyCode ~= current then return end
-            if opts.Callback then task.spawn(opts.Callback, false) end
-        end))
-    end
+    conn(UIS.InputEnded:Connect(function(input)
+        if not hold or not current then return end
+        if input.KeyCode ~= current then return end
+        if opts.Callback then task.spawn(opts.Callback, false) end
+    end))
+
     return { Get = function() return current end }
 end
 
@@ -469,6 +475,7 @@ function Tab:Section(name)
         AutomaticSize = Enum.AutomaticSize.Y,
         BackgroundColor3 = Theme.Panel,
         BorderSizePixel = 0,
+        ZIndex = 1,
     }, self.Scroll)
     corner(holder, 8)
     outline(holder)
@@ -515,6 +522,7 @@ function Hub:Tab(name)
         Size = UDim2.fromScale(1, 1),
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
+        ClipsDescendants = false,
         CanvasSize = UDim2.new(),
         AutomaticCanvasSize = Enum.AutomaticSize.Y,
         ScrollBarThickness = 3,
@@ -569,13 +577,6 @@ function Hub:Build()
         DisplayOrder = 999,
     }, parent)
 
-    self.Toasts = create("Frame", {
-        Size = UDim2.new(0, 260, 1, -40),
-        Position = UDim2.new(1, -272, 0, 20),
-        BackgroundTransparency = 1,
-    }, self.Gui)
-    list(self.Toasts, 8, Enum.HorizontalAlignment.Right)
-
     local win = create("Frame", {
         Size = UDim2.fromOffset(560, 380),
         Position = UDim2.new(0.5, -280, 0.5, -190),
@@ -587,6 +588,14 @@ function Hub:Build()
     corner(win, 10)
     local winStroke = outline(win)
     ThemeHooks[#ThemeHooks + 1] = function() winStroke.Color = Theme.Stroke end
+
+    self.Toasts = create("Frame", {
+        Size = UDim2.new(0, 260, 1, -40),
+        Position = UDim2.new(1, -272, 0, 20),
+        BackgroundTransparency = 1,
+        ZIndex = 60,
+    }, self.Gui)
+    list(self.Toasts, 8, Enum.HorizontalAlignment.Right)
 
     local bar = create("Frame", {
         Size = UDim2.new(1, 0, 0, 38),
@@ -601,11 +610,11 @@ function Hub:Build()
         BorderSizePixel = 0,
     }, bar)
 
-    local title = label(bar, "<b>School</b> Hub", UDim2.new(1, -110, 1, 0), Theme.Text, true)
+    local title = label(bar, "<b>School</b> Hub", UDim2.new(1, -130, 1, 0), Theme.Text, true)
     title.Position = UDim2.new(0, 14, 0, 0)
     title.TextSize = 14
-    local version = label(bar, "v" .. Hub.Version, UDim2.new(0, 60, 1, 0), Theme.Sub)
-    version.Position = UDim2.new(1, -104, 0, 0)
+    local version = label(bar, "v" .. Hub.Version, UDim2.new(0, 54, 1, 0), Theme.Sub)
+    version.Position = UDim2.new(1, -112, 0, 0)
     version.TextXAlignment = Enum.TextXAlignment.Right
 
     local close = create("TextButton", {
@@ -756,7 +765,6 @@ function Hub:Init()
     end })
     config:Button({ Text = "Unload hub", Callback = function() self:Unload() end })
 
-    self:LoadConfig()
     self:Notify("School Hub", "Loaded v" .. self.Version .. " - Right Shift to hide.")
     return self
 end
@@ -896,11 +904,40 @@ function Features.Players(hub)
     })
 end
 
+function Features.Combat(hub)
+    local tab = hub:Tab("Combat")
+    local swinging = false
+
+    local function swingRemote()
+        local folder = game:GetService("ReplicatedStorage"):FindFirstChild("Remotes")
+        local remote = folder and folder:FindFirstChild("Swing")
+        return remote
+    end
+
+    tab:Section("Melee"):Toggle({
+        Text = "Auto swing", Flag = "swing",
+        Callback = function(on)
+            swinging = on
+            if not on then return end
+            task.spawn(function()
+                while swinging and getgenv().SchoolHub do
+                    local remote = swingRemote()
+                    if remote then pcall(remote.FireServer, remote) end
+                    task.wait(0.1)
+                end
+            end)
+        end,
+    })
+end
+
 -- start ----------------------------------------------------------------------
 
 local hub = setmetatable({ Tabs = {} }, Hub)
 hub:Init()
 Features.Movement(hub)
 Features.Players(hub)
+Features.Combat(hub)
+
+hub:LoadConfig()
 
 return hub
